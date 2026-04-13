@@ -1,0 +1,15 @@
+# build
+/build/
+CMakeFiles/
+CMakeCache.txt
+
+# binaries
+*.exe
+*.out
+*.o
+*.obj
+*.dll
+*.so
+
+# misc
+*.log
