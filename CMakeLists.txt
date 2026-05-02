@@ -1,63 +1,44 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(orbitalPhysics LANGUAGES C CXX)
+project(FractureEngine C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_BUILD_TYPE Debug)
 
-add_executable(orbitalPhysics
-    src/main.c
-    src/core.c
-    src/timer.c
+# -------------------------
+# ENGINE LIB
+# -------------------------
+add_library(engine STATIC
+    src/engine.c
+    src/scene.c
+    src/entity.c
     src/camera.c
-    src/planet.c
-    src/world.c
-    src/app.c
     src/assetmanager.c
     src/texture_streamer.c
-    src/ui/ui.c
-    src/ui/ui_widgets.c
     src/platform/platform_win32.c
-    src/luaapi/luaapi.c
+    src/platform/platform_win32_threading.c
 )
 
-target_include_directories(orbitalPhysics PRIVATE
+# -------------------------
+# INCLUDE DIRS
+# -------------------------
+target_include_directories(engine PUBLIC
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/external/nuklear
 )
 
-target_link_libraries(orbitalPhysics PRIVATE
+# -------------------------
+# LINK PREBUILT RAYLIB
+# -------------------------
+target_link_libraries(engine PUBLIC
     ${CMAKE_SOURCE_DIR}/lib/libraylib.a
 )
-target_link_libraries(orbitalPhysics PRIVATE
-    ${CMAKE_SOURCE_DIR}/lib/lua/liblua54.a
-)
 
+# -------------------------
+# WINDOWS SYSTEM LIBS
+# -------------------------
 if (WIN32)
-    target_link_libraries(orbitalPhysics PRIVATE winmm gdi32)
+    target_link_libraries(engine PUBLIC
+        winmm
+        gdi32
+        opengl32
+    )
 endif()
-
-add_custom_target(run
-    COMMAND $<TARGET_FILE:orbitalPhysics>
-    DEPENDS orbitalPhysics
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-add_custom_command(TARGET orbitalPhysics POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            ${CMAKE_SOURCE_DIR}/assets
-            $<TARGET_FILE_DIR:orbitalPhysics>/assets
-)
-
-add_custom_command(TARGET orbitalPhysics POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/lib/raylib.dll
-            $<TARGET_FILE_DIR:orbitalPhysics>
-)
-
-add_custom_command(TARGET orbitalPhysics POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/lib/lua/lua54.dll
-            $<TARGET_FILE_DIR:orbitalPhysics>
-)

@@ -1,94 +1,212 @@
 #include "camera.h"
+
+#include <stdio.h>
+
 #include "raylib.h"
-#include "rlgl.h"
-#include "stdio.h"
 #include "raymath.h"
+#include "rlgl.h"
+#include "stddef.h"
 
-Cam create_camera(void)
-{
-    Cam cam = {
-        .camera = {
-            .position = (Vector3){ 0.0f, 100.0f, 0.0f },
-            .target = (Vector3){ 0.0f, 0.0f, 0.0f },
-            .up = (Vector3){ 0.0f, 1.0f, 0.0f },
-            .fovy = 90.0f,
-            .projection = CAMERA_PERSPECTIVE,
-        },
-        .pitch = 0.0f,
-        .yaw = 0.0f,
-        .sensitivity = 0.1f,
-        .velocity = 100.0f,
-        .deltaTime = 0.0f,
-    };
+Cam camera_create_simple(Vector3 position) {
+  Cam cam = {
+      .camera =
+          {
+              .position = position,
+              .target = (Vector3){0.0f, 0.0f, 0.0f},
+              .up = (Vector3){0.0f, 1.0f, 0.0f},
+              .fovy = 90.0f,
+              .projection = CAMERA_PERSPECTIVE,
+          },
 
-    cam.forward = Vector3Normalize(Vector3Subtract(cam.camera.target, cam.camera.position));
-    rlSetClipPlanes(0.0001f, 10000000.0f);
+      .pitch = 0.0f,
+      .yaw = 0.0f,
 
-    return cam;
+      .sensitivity = 0.1f,
+      .velocity = 10.0f,
+      .deltaTime = 0.1f,
+
+      .nearPlane = 0.1f,
+      .farPlane = 1000.0f,
+
+      .freecam_enabled = true,
+
+      .offset = (Vector3){0.0f, 0.0f, 0.0f},
+      .forward = (Vector3){0.0f, 0.0f, -1.0f},
+  };
+
+  cam.follow_target = NULL;
+
+  rlSetClipPlanes(cam.nearPlane, cam.farPlane);
+
+  return cam;
 }
 
-static void move_camera(Cam *camera)
-{
-    Vector3 right = Vector3Normalize(Vector3CrossProduct(camera->forward, camera->camera.up));
-    Vector3 up = {0.0f, 1.0f, 0.0f};
-    float accel = 20.0f;
+Cam camera_create_advanced(Vector3 position,
+    float yaw,
+    float pitch,
+    float fovy,
+    float nearPlane,
+    float farPlane,
+    float velocity,
+    float sensitivity) {
+  Cam cam = {
+      .camera =
+          {
+              .position = position,
+              .target = (Vector3){0.0f, 0.0f, 0.0f},  // temp, fixed below
+              .up = (Vector3){0.0f, 1.0f, 0.0f},
+              .fovy = fovy,
+              .projection = CAMERA_PERSPECTIVE,
+          },
 
-    if(IsKeyDown(KEY_Q)) {
-        camera->velocity += accel * camera->deltaTime;
-    }
-    if(IsKeyDown(KEY_E)) {
-        camera->velocity -= accel * camera->deltaTime;
-    }
+      .yaw = yaw,
+      .pitch = pitch,
 
-    camera->velocity = Clamp(camera->velocity, 0.1f, 500.0f);
+      .velocity = velocity,
+      .sensitivity = sensitivity,
+      .deltaTime = 0.0f,
 
-    if(IsKeyDown(KEY_W)) {
-        camera->camera.position = Vector3Add(camera->camera.position, Vector3Scale(camera->forward, camera->velocity * camera->deltaTime));
-    }
-    if(IsKeyDown(KEY_S)) {
-        camera->camera.position = Vector3Subtract(camera->camera.position, Vector3Scale(camera->forward, camera->velocity * camera->deltaTime));
-    }
-    if(IsKeyDown(KEY_A)) {
-        camera->camera.position = Vector3Subtract(camera->camera.position, Vector3Scale(right, camera->velocity * camera->deltaTime));
-    }
-    if(IsKeyDown(KEY_D)) {
-        camera->camera.position = Vector3Add(camera->camera.position, Vector3Scale(right, camera->velocity * camera->deltaTime));
-    }
-    if(IsKeyDown(KEY_LEFT_SHIFT) && IsKeyDown(KEY_SPACE)) {
-        camera->camera.position = Vector3Subtract(camera->camera.position, Vector3Scale(up, camera->velocity * camera->deltaTime));
-    }
-    else if(IsKeyDown(KEY_SPACE)) {
-        camera->camera.position = Vector3Add(camera->camera.position, Vector3Scale(up, camera->velocity * camera->deltaTime));
-    }
+      .nearPlane = nearPlane,
+      .farPlane = farPlane,
+
+      .offset = (Vector3){0.0f, 0.0f, 0.0f},
+
+      .freecam_enabled = true,
+  };
+
+  cam.follow_target = NULL;
+
+  cam.forward =
+      Vector3Normalize((Vector3){cosf(pitch) * cosf(yaw), sinf(pitch), cosf(pitch) * sinf(yaw)});
+  cam.camera.target = Vector3Add(cam.camera.position, cam.forward);
+
+  rlSetClipPlanes(cam.nearPlane, cam.farPlane);
+
+  return cam;
 }
 
-void update_camera(Cam *camera)
-{   
-    camera->deltaTime = GetFrameTime();
+// =====================
+// LINKING
+// =====================
+static void move_camera(Cam* camera) {
+  Vector3 right = Vector3Normalize(Vector3CrossProduct(camera->forward, camera->camera.up));
+  Vector3 up = {0.0f, 1.0f, 0.0f};
+  float accel = 20.0f;
 
-    move_camera(camera);
+  if (IsKeyDown(KEY_Q)) {
+    camera->velocity += accel * camera->deltaTime;
+  }
+  if (IsKeyDown(KEY_E)) {
+    camera->velocity -= accel * camera->deltaTime;
+  }
 
-    camera->forward = Vector3Normalize((Vector3){
-        cos(camera->pitch) * cos(camera->yaw),
-        sin(camera->pitch),
-        cos(camera->pitch) * sin(camera->yaw)
-    });
+  camera->velocity = Clamp(camera->velocity, 0.1f, 500.0f);
 
+  if (IsKeyDown(KEY_W)) {
+    camera->camera.position = Vector3Add(camera->camera.position,
+        Vector3Scale(camera->forward, camera->velocity * camera->deltaTime));
+  }
+  if (IsKeyDown(KEY_S)) {
+    camera->camera.position = Vector3Subtract(camera->camera.position,
+        Vector3Scale(camera->forward, camera->velocity * camera->deltaTime));
+  }
+  if (IsKeyDown(KEY_A)) {
+    camera->camera.position = Vector3Subtract(
+        camera->camera.position, Vector3Scale(right, camera->velocity * camera->deltaTime));
+  }
+  if (IsKeyDown(KEY_D)) {
+    camera->camera.position = Vector3Add(
+        camera->camera.position, Vector3Scale(right, camera->velocity * camera->deltaTime));
+  }
+  if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyDown(KEY_SPACE)) {
+    camera->camera.position = Vector3Subtract(
+        camera->camera.position, Vector3Scale(up, camera->velocity * camera->deltaTime));
+  } else if (IsKeyDown(KEY_SPACE)) {
+    camera->camera.position =
+        Vector3Add(camera->camera.position, Vector3Scale(up, camera->velocity * camera->deltaTime));
+  }
+}
 
-    camera->forward = Vector3Normalize(camera->forward);
-    camera->camera.target = Vector3Add(
-            camera->camera.position,
-            camera->forward
-        );
-    
-    if(camera->rotate_active) {
-        Vector2 mouseDelta = GetMouseDelta();
+void camera_link(Cam* cam, Entity* target) {
+  if (!cam) return;
 
-        const float sen = 0.001f;
-        camera->pitch -= mouseDelta.y * sen;
-        camera->yaw   += mouseDelta.x * sen;
+  cam->follow_target = target;
+  cam->freecam_enabled = false;  // follow overrides freecam
+}
 
-        camera->pitch = Clamp(camera->pitch, -1.5f, 1.5f);
+void camera_unlink(Cam* cam) {
+  if (!cam) return;
 
-    }
+  cam->follow_target = NULL;
+}
+
+void camera_set_offset(Cam* cam, Vector3 offset) {
+  if (!cam) return;
+  cam->offset = offset;
+}
+
+// =====================
+// CONFIG
+// =====================
+
+void camera_set_render_distance(Cam* cam, float nearPlane, float farPlane) {
+  if (!cam) return;
+
+  cam->nearPlane = nearPlane;
+  cam->farPlane = farPlane;
+
+  rlSetClipPlanes(nearPlane, farPlane);
+}
+
+void camera_set_fov(Cam* cam, float fov) {
+  if (!cam) return;
+  cam->camera.fovy = fov;
+}
+
+// =====================
+// MODE
+// =====================
+
+void camera_set_freecam(Cam* cam, bool enabled) {
+  if (!cam) return;
+
+  cam->freecam_enabled = enabled;
+}
+
+// =====================
+// TRANSFORMS
+// =====================
+
+void camera_rotate(Cam* cam, float yaw_delta, float pitch_delta) {
+  if (!cam) return;
+
+  cam->yaw += yaw_delta;
+  cam->pitch += pitch_delta;
+  cam->pitch = Clamp(cam->pitch, -1.5f, 1.5f);
+}
+
+void camera_zoom(Cam* cam, float amount) {
+  if (!cam) return;
+
+  cam->camera.fovy += amount;
+}
+
+// =====================
+// APPLY
+// =====================
+
+void camera_apply(Cam* cam) {
+  if (!cam) return;
+
+  cam->forward = Vector3Normalize((Vector3){
+      cosf(cam->pitch) * cosf(cam->yaw), sinf(cam->pitch), cosf(cam->pitch) * sinf(cam->yaw)});
+
+  cam->camera.target = Vector3Add(cam->camera.position, cam->forward);
+}
+void camera_update(Cam* cam) {
+  if (!cam) return;
+  if (cam->freecam_enabled) {
+    move_camera(cam);
+  }
+  camera_apply(cam);
 }

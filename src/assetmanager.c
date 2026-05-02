@@ -1,26 +1,32 @@
 #include "assetmanager.h"
-#include "raylib.h"
-#include "texture_streamer.h"
-#include "uthash.h"
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
-TextureEntry *texture_map = NULL;
+#include "raylib.h"
+#include "texture_streamer.h"
+#include "uthash.h"
 
-ManagedTexture *asset_get_texture(const char *path) {
-  TextureEntry *entry = NULL;
+TextureEntry* texture_map = NULL;
+
+ManagedTexture* asset_get_texture(const char* path) {
+  if (!path) return NULL;
+  TextureEntry* entry = NULL;
 
   HASH_FIND_STR(texture_map, path, entry);
 
   if (!entry) {
     entry = malloc(sizeof(TextureEntry));
+    if (!entry) return NULL;
     entry->key = strdup(path);
-    // entry->managed.loaded = false;
-    // entry->managed.refCount = 1;
-    entry->managed.texture = LoadTexture(path);
+    if (!entry->key) {
+      free(entry);
+      return NULL;
+    }
     entry->managed.refCount = 1;
-    entry->managed.loaded = true;
+    entry->managed.texture = LoadTexture(path);
+    entry->managed.loaded = (entry->managed.texture.id != 0);
     HASH_ADD_KEYPTR(hh, texture_map, entry->key, strlen(entry->key), entry);
 
     // static const char *pending_path = NULL;
@@ -35,8 +41,8 @@ ManagedTexture *asset_get_texture(const char *path) {
   return &entry->managed;
 }
 
-void asset_release_texture(const char *path) {
-  TextureEntry *entry = NULL;
+void asset_release_texture(const char* path) {
+  TextureEntry* entry = NULL;
   HASH_FIND_STR(texture_map, path, entry);
 
   if (!entry) {
@@ -53,7 +59,7 @@ void asset_release_texture(const char *path) {
     UnloadTexture(entry->managed.texture);
     HASH_DEL(texture_map, entry);
 
-    free((void *)entry->key);
+    free((void*)entry->key);
     free(entry);
   }
 }
@@ -64,7 +70,8 @@ void asset_manager_shutdown(void) {
   HASH_ITER(hh, texture_map, entry, tmp) {
     UnloadTexture(entry->managed.texture);
     HASH_DEL(texture_map, entry);
-    free((void *)entry->key);
+    free((void*)entry->key);
     free(entry);
   }
+  texture_map = NULL;
 }
