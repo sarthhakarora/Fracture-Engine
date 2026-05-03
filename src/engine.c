@@ -1,26 +1,35 @@
 #include "engine.h"
 
 #include "assetmanager.h"
+#include "scene.h"
+#include "stddef.h"
 #include "raylib.h"
-#include "stdio.h"
+#include "log_internal.h"
 
 void engine_init(Engine* e) {
   InitWindow(e->width, e->height, e->title);
 
   e->isRunning = true;
+  e->activeScene = NULL;
 
   SetTargetFPS(e->fps);
   return;
 }
-void engine_begin_frame(Color color) {
+
+void engine_set_active_scene(Engine *e, Scene* activeScene) {
+  e->activeScene = activeScene;
+}
+
+void engine_begin_frame(Engine* e, Color color) {
   BeginDrawing();
   ClearBackground(color);
+  e->dt = GetFrameTime();
   return;
 }
 
 Texture2D* engine_load_texture(const char* path) {
   if (path == NULL) {
-    fprintf(stderr, "engine_load_texture: path is NULL\n");
+    _log_msg(_LOG_ENGINE, _LOG_LEVEL_ERROR, "path is NULL");
     return NULL;
   }
   ManagedTexture* tex = asset_get_texture(path);

@@ -16,7 +16,7 @@ typedef struct {
   float pitch;
 
   // movement
-  float velocity;
+  float speed;
   float sensitivity;
   float deltaTime;
 
@@ -47,11 +47,11 @@ Cam camera_create_advanced(Vector3 position,
     float fovy,
     float nearPlane,
     float farPlane,
-    float velocity,
+    float speed,
     float sensitivity);
 
 // update (handles follow + forward calc)
-void camera_update(Cam* cam);
+void camera_update(Cam* cam, float dt);
 void camera_rotate(Cam* cam, float yaw_delta, float pitch_delta);
 
 // =====================
@@ -69,7 +69,6 @@ void camera_set_fov(Cam* cam, float fovy);
 
 // clip planes
 void camera_set_render_distance(Cam* cam, float nearPlane, float farPlane);
-
 // =====================
 // STATE
 // =====================

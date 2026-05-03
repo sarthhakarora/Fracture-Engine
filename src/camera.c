@@ -22,8 +22,7 @@ Cam camera_create_simple(Vector3 position) {
       .yaw = 0.0f,
 
       .sensitivity = 0.1f,
-      .velocity = 10.0f,
-      .deltaTime = 0.1f,
+      .speed = 10.0f,
 
       .nearPlane = 0.1f,
       .farPlane = 1000.0f,
@@ -47,7 +46,7 @@ Cam camera_create_advanced(Vector3 position,
     float fovy,
     float nearPlane,
     float farPlane,
-    float velocity,
+    float speed,
     float sensitivity) {
   Cam cam = {
       .camera =
@@ -62,9 +61,8 @@ Cam camera_create_advanced(Vector3 position,
       .yaw = yaw,
       .pitch = pitch,
 
-      .velocity = velocity,
+      .speed = speed,
       .sensitivity = sensitivity,
-      .deltaTime = 0.0f,
 
       .nearPlane = nearPlane,
       .farPlane = farPlane,
@@ -88,42 +86,41 @@ Cam camera_create_advanced(Vector3 position,
 // =====================
 // LINKING
 // =====================
-static void move_camera(Cam* camera) {
+static void move_camera(Cam* camera, float dt) {
   Vector3 right = Vector3Normalize(Vector3CrossProduct(camera->forward, camera->camera.up));
-  Vector3 up = {0.0f, 1.0f, 0.0f};
-  float accel = 20.0f;
+  float accel = 40.0f;
 
   if (IsKeyDown(KEY_Q)) {
-    camera->velocity += accel * camera->deltaTime;
+    camera->speed += accel * dt;
   }
   if (IsKeyDown(KEY_E)) {
-    camera->velocity -= accel * camera->deltaTime;
+    camera->speed -= accel * dt;
   }
 
-  camera->velocity = Clamp(camera->velocity, 0.1f, 500.0f);
+  camera->speed = Clamp(camera->speed, 0.1f, 500.0f);
 
   if (IsKeyDown(KEY_W)) {
     camera->camera.position = Vector3Add(camera->camera.position,
-        Vector3Scale(camera->forward, camera->velocity * camera->deltaTime));
+        Vector3Scale(camera->forward, camera->speed * dt));
   }
   if (IsKeyDown(KEY_S)) {
     camera->camera.position = Vector3Subtract(camera->camera.position,
-        Vector3Scale(camera->forward, camera->velocity * camera->deltaTime));
+        Vector3Scale(camera->forward, camera->speed * dt));
   }
   if (IsKeyDown(KEY_A)) {
     camera->camera.position = Vector3Subtract(
-        camera->camera.position, Vector3Scale(right, camera->velocity * camera->deltaTime));
+        camera->camera.position, Vector3Scale(right, camera->speed * dt));
   }
   if (IsKeyDown(KEY_D)) {
     camera->camera.position = Vector3Add(
-        camera->camera.position, Vector3Scale(right, camera->velocity * camera->deltaTime));
+        camera->camera.position, Vector3Scale(right, camera->speed * dt));
   }
   if (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyDown(KEY_SPACE)) {
     camera->camera.position = Vector3Subtract(
-        camera->camera.position, Vector3Scale(up, camera->velocity * camera->deltaTime));
+        camera->camera.position, Vector3Scale(camera->camera.up, camera->speed * dt));
   } else if (IsKeyDown(KEY_SPACE)) {
     camera->camera.position =
-        Vector3Add(camera->camera.position, Vector3Scale(up, camera->velocity * camera->deltaTime));
+        Vector3Add(camera->camera.position, Vector3Scale(camera->camera.up, camera->speed * dt));
   }
 }
 
@@ -194,7 +191,6 @@ void camera_zoom(Cam* cam, float amount) {
 // =====================
 // APPLY
 // =====================
-
 void camera_apply(Cam* cam) {
   if (!cam) return;
 
@@ -203,10 +199,14 @@ void camera_apply(Cam* cam) {
 
   cam->camera.target = Vector3Add(cam->camera.position, cam->forward);
 }
-void camera_update(Cam* cam) {
+
+void camera_update(Cam* cam, float dt) {
   if (!cam) return;
   if (cam->freecam_enabled) {
-    move_camera(cam);
+    move_camera(cam, dt);
+  }
+  if (cam->follow_target != NULL) {
+    cam->camera.position = Vector3Add(cam->follow_target->pos, cam->offset);
   }
   camera_apply(cam);
 }

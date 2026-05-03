@@ -12,6 +12,7 @@ add_library(engine STATIC
     src/scene.c
     src/entity.c
     src/camera.c
+    src/log.c
     src/assetmanager.c
     src/texture_streamer.c
     src/platform/platform_win32.c

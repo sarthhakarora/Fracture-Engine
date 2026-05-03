@@ -1,6 +1,10 @@
 #pragma once
 
 #include "raylib.h"
+#include "stdint.h"
+
+struct Scene;
+typedef struct Scene Scene;
 
 typedef enum {
   ENTITY_STATIC,
@@ -26,6 +30,7 @@ typedef struct {
 } RenderData;
 
 typedef struct {
+  int64_t id;
   Vector3 pos;
   Vector3 vel;
   float mass;
@@ -33,9 +38,9 @@ typedef struct {
   RenderData render;
 } Entity;
 
-Entity entity_create_simple(Vector3 pos, ShapeType shape, EntityType type, Color color);
-Entity entity_create_advanced(
-    Vector3 pos, EntityType type, float mass, Vector3 vel, RenderData render);
+Entity* entity_create_simple(Scene* scene, Vector3 pos, ShapeType shape, EntityType type, Color color);
+Entity* entity_create_advanced(
+    Scene* scene, Vector3 pos, EntityType type, float mass, Vector3 vel, RenderData render);
 void entity_change_type(Entity* entity, EntityType type);
 void entity_draw(Entity* entity);
 void entity_update(Entity* entity, float dt);

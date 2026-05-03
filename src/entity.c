@@ -1,64 +1,62 @@
 #include "entity.h"
+#include <stdbool.h>
 
-#include "errno.h"
 #include "raylib.h"
+#include "raymath.h"
+#include "scene.h"
 #include "stddef.h"
-#include "stdio.h"
+#include "log_internal.h"
+#include "engine.h"
+#include "inttypes.h"
+#include "log_internal.h"
 
 // =====================
 // CONSTRUCTORS
 // =====================
+Entity* entity_create_simple(Scene* scene, Vector3 pos, ShapeType shape, EntityType type, Color color) {
+  if(scene == NULL) {
+    _log_msg(_LOG_GAME, _LOG_LEVEL_ERROR, "Entity creation failed - entity needs host scene");
+    return NULL;
+  }
 
-Entity entity_create_simple(Vector3 pos, ShapeType shape, EntityType type, Color color) {
   Entity entity = {
-      .type = type,
-      .mass = 1.0f,
-      .pos = pos,
-      .render =
-          {
-              .color = color,
-              .shape = shape,
-          },
-      .vel = (Vector3){0.0f, 0.0f, 0.0f},
+    .type = type,
+    .mass = 1.0f,
+    .pos = pos,
+    .render =
+        {
+            .color = color,
+            .shape = shape,
+        },
+    .vel = (Vector3){0.0f, 0.0f, 0.0f},
   };
 
   entity.render.texture = NULL;
-  entity.render.mesh = NULL;
   entity.render.has_model = false;
 
-  return entity;
+  Entity* e = scene_add_entity(scene, entity);
+
+  return e;
 }
 
-Entity entity_create_advanced(
-    Vector3 pos, EntityType type, float mass, Vector3 vel, RenderData render) {
+Entity* entity_create_advanced(
+    Scene* scene, Vector3 pos, EntityType type, float mass, Vector3 vel, RenderData render) {
   Entity entity = {
-      .type = type,
-      .mass = mass,
-      .pos = pos,
-      .render = render,
-      .vel = vel,
+    .type = type,
+    .mass = mass,
+    .pos = pos,
+    .render = render,
+    .vel = vel,
   };
-
-  entity.render.has_model = false;
-
-  if (entity.render.mesh != NULL) {
-    entity.render.model = LoadModelFromMesh(*entity.render.mesh);
-    entity.render.has_model = true;
-    // NOTE: entity.render.mesh IS NOW A DANGELING POINTER BUT WE WILL ADD THE ABLITY TO CHANGE THE
-    // MESH WHEN WE WANT LATER GOOD FOR NOW
-    UnloadMesh(*entity.render.mesh);
-    entity.render.mesh = NULL;
+  if(scene == NULL) {
+    _log_msg(_LOG_GAME, _LOG_LEVEL_ERROR, "Entity creation failed - entity needs host scene");
+    return NULL;
   }
 
-  return entity;
-}
+  entity.render.has_model = (render.model.meshCount > 0);
+  entity.render.model = render.model;
 
-// =====================
-// RUNTIME MODIFICATION
-// =====================
-
-void entity_change_type(Entity* entity, EntityType type) {
-  entity->type = type;
+  return scene_add_entity(scene, entity);
 }
 
 // =====================
@@ -66,6 +64,7 @@ void entity_change_type(Entity* entity, EntityType type) {
 // =====================
 
 void entity_update(Entity* entity, float dt) {
+  entity->pos = Vector3Add(entity->pos, Vector3Scale(entity->vel, dt));
 }
 
 // =====================
@@ -107,15 +106,9 @@ void entity_draw(Entity* entity) {
           entity->render.size.y,
           entity->render.size.z,
           entity->render.color);
-      printf(
-          "Error: Type - Model failed to load\nthe model got hit by a bozuka imma just give u "
-          "a "
-          "red cube");
+      _log_msg(_LOG_ENGINE, _LOG_LEVEL_ERROR, "Model failed to load falling back to red cube Entity id: " PRId64 "\n", entity->id);
   }
 }
 
 void entity_destroy(Entity* entity) {
-  if (entity->render.has_model) {
-    UnloadModel(entity->render.model);
-  }
 }

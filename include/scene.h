@@ -4,15 +4,15 @@
 
 #include "entity.h"
 
-typedef struct {
-  Entity* entities;
+typedef struct Scene {
+  Entity **entities;
   int count;
   int capacity;
   float timeScale;
 } Scene;
 
-Scene scene_create(int capacity);
-void scene_add_entity(Scene* scene, Entity entity);
+Scene* scene_create(int capacity);
+Entity* scene_add_entity(Scene* scene, Entity entity);
 void scene_update(Scene* scene, float dt);
 void scene_draw(Scene* scene);
 void scene_shutdown(Scene* scene);
